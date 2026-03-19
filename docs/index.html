@@ -3,7 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Talos Dashboard</title>
+
+  <!-- Primary SEO -->
+  <title>Talos Dashboard – Web UI for Talos Linux Cluster Management</title>
+  <meta name="description" content="Talos Dashboard is an open-source web interface for managing Talos Linux clusters. Real-time node operations, machine config editing, image and Kubernetes upgrades, patch templates, and live log streaming — all from your browser.">
+  <meta name="keywords" content="Talos Linux, Talos Dashboard, Kubernetes, cluster management, talosctl, Django, open source, node upgrade, machine config, WebSocket">
+  <meta name="author" content="erelbi">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://erelbi.github.io/talos-dashboard/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://erelbi.github.io/talos-dashboard/">
+  <meta property="og:title" content="Talos Dashboard – Web UI for Talos Linux Cluster Management">
+  <meta property="og:description" content="Open-source web dashboard for Talos Linux clusters. Real-time upgrades, machine config editing, patch management, and live node logs via WebSocket.">
+  <meta property="og:image" content="https://erelbi.github.io/talos-dashboard/images/talos-dasboard-1.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Talos Dashboard – Web UI for Talos Linux Cluster Management">
+  <meta name="twitter:description" content="Open-source web dashboard for Talos Linux clusters. Real-time upgrades, machine config editing, patch management, and live node logs via WebSocket.">
+  <meta name="twitter:image" content="https://erelbi.github.io/talos-dashboard/images/talos-dasboard-1.png">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Talos Dashboard",
+    "description": "Open-source web-based management dashboard for Talos Linux clusters. Provides real-time node operations, machine configuration editing, image and Kubernetes upgrades, patch template management, and live log streaming.",
+    "url": "https://erelbi.github.io/talos-dashboard/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux",
+    "license": "https://opensource.org/licenses/MIT",
+    "codeRepository": "https://github.com/erelbi/talos-dashboard",
+    "programmingLanguage": ["Python", "JavaScript", "HTML"],
+    "author": {
+      "@type": "Person",
+      "name": "erelbi",
+      "url": "https://github.com/erelbi"
+    }
+  }
+  </script>
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z65XBMZV0"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6Z65XBMZV0');
+  </script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -98,11 +149,6 @@
       transition: border-color .15s;
     }
     .feature-card:hover { border-color: #58a6ff; }
-
-    .feature-icon {
-      font-size: 1.4rem;
-      margin-bottom: 10px;
-    }
 
     .feature-card h3 {
       font-size: .95rem;
@@ -201,18 +247,6 @@
       color: #8b949e;
     }
 
-    /* ── Footer ── */
-    footer {
-      text-align: center;
-      padding: 32px 24px;
-      color: #6e7681;
-      font-size: .82rem;
-      border-top: 1px solid #21262d;
-    }
-
-    footer a { color: #58a6ff; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-
     /* ── About ── */
     .about {
       max-width: 860px;
@@ -266,6 +300,18 @@
       color: #79c0ff;
     }
 
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: #6e7681;
+      font-size: .82rem;
+      border-top: 1px solid #21262d;
+    }
+
+    footer a { color: #58a6ff; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
     @media (max-width: 600px) {
       .about-inner { padding: 32px 24px; }
     }
@@ -285,46 +331,38 @@
 </header>
 
 <!-- ── Feature Grid ── -->
-<section class="features">
+<section class="features" aria-label="Features">
   <h2 class="section-title">Features</h2>
   <div class="feature-grid">
     <div class="feature-card">
-      <div class="feature-icon">&#128268;</div>
       <h3>Cluster Management</h3>
       <p>Add, edit, and delete clusters. Download talosconfig and kubeconfig directly from the UI.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128187;</div>
       <h3>Node Operations</h3>
       <p>Reboot, shutdown, reset, restart services, and view live logs per node via WebSocket.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128295;</div>
       <h3>Machine Config</h3>
       <p>View and edit full machine configurations with a YAML editor. Apply changes with selectable modes.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128203;</div>
       <h3>Patch Templates</h3>
       <p>Save JSON or YAML patch templates and apply them to all nodes, control planes, or workers.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128640;</div>
       <h3>Upgrades</h3>
       <p>Image and Kubernetes upgrades with real-time streaming output per node.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128202;</div>
       <h3>Resource Monitoring</h3>
       <p>CPU, memory, disk usage and process list per node refreshed on demand.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#9889;</div>
       <h3>Bootstrap Wizard</h3>
       <p>3-step cluster bootstrap: generate configs, edit YAML in the browser, apply and bootstrap etcd.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">&#128275;</div>
       <h3>Role-Based Access</h3>
       <p>Three roles: admin, operator, viewer. Enforced on every view and operation.</p>
     </div>
@@ -332,7 +370,7 @@
 </section>
 
 <!-- ── Stack ── -->
-<div class="stack">
+<div class="stack" aria-label="Technology stack">
   <h2 class="section-title" style="margin-bottom:0">Stack</h2>
   <div class="stack-pills">
     <span class="pill">Django 5.x</span>
@@ -349,104 +387,104 @@
 </div>
 
 <!-- ── Screenshots ── -->
-<section class="screenshots">
+<section class="screenshots" aria-label="Screenshots">
   <h2 class="section-title">Screenshots</h2>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">1</div>
+      <div class="screenshot-num" aria-hidden="true">1</div>
       <div>
         <h2>Dashboard Overview</h2>
         <p>Cluster list with node counts, status summary, and quick-access actions.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dasboard-1.png" alt="Dashboard Overview" loading="lazy">
+      <img src="images/talos-dasboard-1.png" alt="Talos Dashboard overview showing cluster list with node counts and status" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">2</div>
+      <div class="screenshot-num" aria-hidden="true">2</div>
       <div>
         <h2>Cluster &amp; Node Detail</h2>
         <p>Node list with live status, reboot / shutdown / reset / restart-service controls, version info, and real-time log streaming.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dashboard-2.png" alt="Cluster and Node Detail" loading="lazy">
+      <img src="images/talos-dashboard-2.png" alt="Cluster and node detail page with node operations and live log streaming" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">3</div>
+      <div class="screenshot-num" aria-hidden="true">3</div>
       <div>
         <h2>Resource Usage &amp; Processes</h2>
         <p>Per-node CPU, memory, disk metrics and running process list.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dashboard-3.png" alt="Resource Usage and Processes" loading="lazy">
+      <img src="images/talos-dashboard-3.png" alt="Node resource usage dashboard showing CPU, memory, disk metrics and process list" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">4</div>
+      <div class="screenshot-num" aria-hidden="true">4</div>
       <div>
         <h2>Image Upgrade</h2>
         <p>Upgrade Talos OS image on selected nodes with real-time streaming console output per node.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dashboard-4.png" alt="Image Upgrade" loading="lazy">
+      <img src="images/talos-dashboard-4.png" alt="Talos OS image upgrade screen with real-time streaming console output" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">5</div>
+      <div class="screenshot-num" aria-hidden="true">5</div>
       <div>
         <h2>Kubernetes Upgrade</h2>
         <p>Upgrade the Kubernetes control plane with live log output streamed directly in the browser.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dashboard-5.png" alt="Kubernetes Upgrade" loading="lazy">
+      <img src="images/talos-dashboard-5.png" alt="Kubernetes control plane upgrade with live log streaming in the browser" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">6</div>
+      <div class="screenshot-num" aria-hidden="true">6</div>
       <div>
         <h2>Patch Management</h2>
         <p>Apply JSON RFC 6902 or YAML merge patches to all nodes, control planes only, or workers. Real-time console per job.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dashboard-6.png" alt="Patch Management" loading="lazy">
+      <img src="images/talos-dashboard-6.png" alt="Patch management screen applying JSON or YAML patches to Talos nodes" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">
-      <div class="screenshot-num">7</div>
+      <div class="screenshot-num" aria-hidden="true">7</div>
       <div>
         <h2>Upgrade Jobs</h2>
         <p>History of all upgrade jobs with status, timestamps, and full console log replay.</p>
       </div>
     </div>
     <div class="screenshot-frame">
-      <img src="images/talos-dasboard-7.png" alt="Upgrade Jobs" loading="lazy">
+      <img src="images/talos-dasboard-7.png" alt="Upgrade jobs history page with status, timestamps, and console log replay" loading="lazy" width="1280" height="720">
     </div>
   </div>
 
 </section>
 
 <!-- ── About ── -->
-<section class="about">
+<section class="about" aria-label="About">
   <div class="about-inner">
     <h2>About This Project</h2>
     <p>
