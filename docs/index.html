@@ -50,19 +50,45 @@
   <!-- iubenda Cookie Consent -->
   <script type="text/javascript">
     var _iub = _iub || [];
-    _iub.csConfiguration = {"siteId":4466788,"cookiePolicyId":57666473,"lang":"en","storage":{"useSiteId":true}};
+    _iub.csConfiguration = {
+      "siteId": 4466788,
+      "cookiePolicyId": 57666473,
+      "lang": "en",
+      "storage": {"useSiteId": true},
+      "banner": {
+        "acceptButtonDisplay": true,
+        "customizeButtonDisplay": true,
+        "rejectButtonDisplay": true,
+        "position": "float-bottom-center"
+      },
+      "callback": {
+        "onPreferenceExpressedOrNotNeeded": function(preference) {
+          if (!preference || preference.purpose["5"]) {
+            // Analytics consent given (or not needed)
+            if (typeof gtag === 'function') {
+              gtag('consent', 'update', { analytics_storage: 'granted' });
+            }
+          }
+        }
+      }
+    };
   </script>
   <script type="text/javascript" src="https://cs.iubenda.com/autoblocking/4466788.js"></script>
-  <script type="text/javascript" src="//cdn.iubenda.com/cs/gpp/stub.js"></script>
-  <script type="text/javascript" src="//cdn.iubenda.com/cs/iubenda_cs.js" charset="UTF-8" async></script>
+  <script type="text/javascript" src="https://cdn.iubenda.com/cs/gpp/stub.js"></script>
+  <script type="text/javascript" src="https://cdn.iubenda.com/cs/iubenda_cs.js" charset="UTF-8" async></script>
 
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z65XBMZV0"></script>
+  <!-- Google Analytics (consent-aware) -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      analytics_storage: 'denied'
+    });
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z65XBMZV0"></script>
+  <script>
     gtag('js', new Date());
-    gtag('config', 'G-6Z65XBMZV0');
+    gtag('config', 'G-6Z65XBMZV0', { anonymize_ip: true });
   </script>
 
   <style>
