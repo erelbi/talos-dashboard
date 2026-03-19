@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talos Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #161b22 0%, #0d1117 60%);
+      border-bottom: 1px solid #30363d;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: #1f2937;
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: .78rem;
+      color: #58a6ff;
+      letter-spacing: .5px;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      background: linear-gradient(90deg, #e6edf3 0%, #58a6ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      max-width: 640px;
+      margin: 0 auto 32px;
+      color: #8b949e;
+      font-size: 1.05rem;
+    }
+
+    .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: .95rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #238636; color: #fff; }
+    .btn-secondary { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+
+    /* ── Features ── */
+    .features {
+      max-width: 1000px;
+      margin: 64px auto;
+      padding: 0 24px;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 40px;
+      color: #e6edf3;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 20px 22px;
+      transition: border-color .15s;
+    }
+    .feature-card:hover { border-color: #58a6ff; }
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+    }
+
+    .feature-card h3 {
+      font-size: .95rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #e6edf3;
+    }
+
+    .feature-card p {
+      font-size: .83rem;
+      color: #8b949e;
+    }
+
+    /* ── Screenshots ── */
+    .screenshots {
+      max-width: 1100px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+    }
+
+    .screenshot-item {
+      margin-bottom: 64px;
+    }
+
+    .screenshot-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .screenshot-num {
+      background: #58a6ff;
+      color: #0d1117;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .screenshot-label h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+
+    .screenshot-label p {
+      font-size: .82rem;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    .screenshot-frame {
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #161b22;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+
+    .screenshot-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ── Stack ── */
+    .stack {
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      border-bottom: 1px solid #30363d;
+      padding: 48px 24px;
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .stack-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+
+    .pill {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: .82rem;
+      color: #8b949e;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: #6e7681;
+      font-size: .82rem;
+      border-top: 1px solid #21262d;
+    }
+
+    footer a { color: #58a6ff; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ── Hero ── -->
+<header class="hero">
+  <div class="hero-badge">Open Source / MIT License</div>
+  <h1>Talos Dashboard</h1>
+  <p>A web-based management interface for Talos Linux clusters. Real-time node operations, machine config management, upgrades, and patch workflows — all from your browser.</p>
+  <div class="btn-group">
+    <a href="https://github.com/erelbi/talos-dashboard" class="btn btn-primary">View on GitHub</a>
+    <a href="https://github.com/erelbi/talos-dashboard#installation" class="btn btn-secondary">Installation</a>
+  </div>
+</header>
+
+<!-- ── Feature Grid ── -->
+<section class="features">
+  <h2 class="section-title">Features</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">&#128268;</div>
+      <h3>Cluster Management</h3>
+      <p>Add, edit, and delete clusters. Download talosconfig and kubeconfig directly from the UI.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128187;</div>
+      <h3>Node Operations</h3>
+      <p>Reboot, shutdown, reset, restart services, and view live logs per node via WebSocket.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128295;</div>
+      <h3>Machine Config</h3>
+      <p>View and edit full machine configurations with a YAML editor. Apply changes with selectable modes.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128203;</div>
+      <h3>Patch Templates</h3>
+      <p>Save JSON or YAML patch templates and apply them to all nodes, control planes, or workers.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128640;</div>
+      <h3>Upgrades</h3>
+      <p>Image and Kubernetes upgrades with real-time streaming output per node.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128202;</div>
+      <h3>Resource Monitoring</h3>
+      <p>CPU, memory, disk usage and process list per node refreshed on demand.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#9889;</div>
+      <h3>Bootstrap Wizard</h3>
+      <p>3-step cluster bootstrap: generate configs, edit YAML in the browser, apply and bootstrap etcd.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128275;</div>
+      <h3>Role-Based Access</h3>
+      <p>Three roles: admin, operator, viewer. Enforced on every view and operation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stack ── -->
+<div class="stack">
+  <h2 class="section-title" style="margin-bottom:0">Stack</h2>
+  <div class="stack-pills">
+    <span class="pill">Django 5.x</span>
+    <span class="pill">Django Channels 4.x</span>
+    <span class="pill">Celery</span>
+    <span class="pill">Redis</span>
+    <span class="pill">Bootstrap 5</span>
+    <span class="pill">HTMX</span>
+    <span class="pill">CodeMirror 5</span>
+    <span class="pill">SQLite / PostgreSQL</span>
+    <span class="pill">talosctl</span>
+    <span class="pill">WebSocket</span>
+  </div>
+</div>
+
+<!-- ── Screenshots ── -->
+<section class="screenshots">
+  <h2 class="section-title">Screenshots</h2>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">1</div>
+      <div>
+        <h2>Dashboard Overview</h2>
+        <p>Cluster list with node counts, status summary, and quick-access actions.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dasboard-1.png" alt="Dashboard Overview" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">2</div>
+      <div>
+        <h2>Cluster &amp; Node Detail</h2>
+        <p>Node list with live status, reboot / shutdown / reset / restart-service controls, version info, and real-time log streaming.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dashboard-2.png" alt="Cluster and Node Detail" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">3</div>
+      <div>
+        <h2>Resource Usage &amp; Processes</h2>
+        <p>Per-node CPU, memory, disk metrics and running process list.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dashboard-3.png" alt="Resource Usage and Processes" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">4</div>
+      <div>
+        <h2>Image Upgrade</h2>
+        <p>Upgrade Talos OS image on selected nodes with real-time streaming console output per node.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dashboard-4.png" alt="Image Upgrade" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">5</div>
+      <div>
+        <h2>Kubernetes Upgrade</h2>
+        <p>Upgrade the Kubernetes control plane with live log output streamed directly in the browser.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dashboard-5.png" alt="Kubernetes Upgrade" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">6</div>
+      <div>
+        <h2>Patch Management</h2>
+        <p>Apply JSON RFC 6902 or YAML merge patches to all nodes, control planes only, or workers. Real-time console per job.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dashboard-6.png" alt="Patch Management" loading="lazy">
+    </div>
+  </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">
+      <div class="screenshot-num">7</div>
+      <div>
+        <h2>Upgrade Jobs</h2>
+        <p>History of all upgrade jobs with status, timestamps, and full console log replay.</p>
+      </div>
+    </div>
+    <div class="screenshot-frame">
+      <img src="images/talos-dasboard-7.png" alt="Upgrade Jobs" loading="lazy">
+    </div>
+  </div>
+
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <p>
+    <a href="https://github.com/erelbi/talos-dashboard">github.com/erelbi/talos-dashboard</a>
+    &nbsp;&middot;&nbsp;
+    MIT License
+    &nbsp;&middot;&nbsp;
+    Built for <a href="https://www.talos.dev/">Talos Linux</a>
+  </p>
+</footer>
+
+</body>
+</html>
