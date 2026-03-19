@@ -212,6 +212,63 @@
 
     footer a { color: #58a6ff; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+
+    /* ── About ── */
+    .about {
+      max-width: 860px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+    }
+
+    .about-inner {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 48px 52px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .about-inner::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #58a6ff 0%, #3fb950 50%, #f78166 100%);
+    }
+
+    .about-inner h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #e6edf3;
+      margin-bottom: 20px;
+    }
+
+    .about-inner p {
+      color: #8b949e;
+      font-size: .95rem;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+
+    .about-inner p:last-child { margin-bottom: 0; }
+
+    .about-inner strong { color: #e6edf3; font-weight: 600; }
+
+    .about-highlight {
+      display: inline-block;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: monospace;
+      font-size: .85rem;
+      color: #79c0ff;
+    }
+
+    @media (max-width: 600px) {
+      .about-inner { padding: 32px 24px; }
+    }
   </style>
 </head>
 <body>
@@ -386,6 +443,44 @@
     </div>
   </div>
 
+</section>
+
+<!-- ── About ── -->
+<section class="about">
+  <div class="about-inner">
+    <h2>About This Project</h2>
+    <p>
+      <strong>Talos Dashboard</strong> was built out of a real operational need: managing Talos Linux clusters
+      through the command line is powerful but repetitive. Every reboot, config apply, or upgrade cycle meant
+      juggling <span class="about-highlight">talosctl</span> flags, YAML files, and multiple terminal windows.
+      The goal was to bring all of that into a single, browser-based interface without giving up transparency
+      or control.
+    </p>
+    <p>
+      The project wraps <span class="about-highlight">talosctl</span> entirely via subprocess with
+      <strong>shell=False</strong> throughout — no string interpolation, no shell expansion, no hidden attack
+      surface. Talosconfig files are written to a temporary path with mode <span class="about-highlight">0o600</span>
+      and deleted immediately after each operation. Role-based access (admin / operator / viewer) is enforced
+      at the view layer so teams can share the dashboard without sharing full cluster credentials.
+    </p>
+    <p>
+      Real-time feedback was a first-class concern from the start. Upgrade and patch operations stream output
+      line-by-line to the browser over WebSocket using <strong>Django Channels</strong> and <strong>Celery</strong>,
+      so you never have to tail a log file to know what is happening on a node. The same streaming approach
+      powers live cluster events and node service logs.
+    </p>
+    <p>
+      The stack is intentionally straightforward: <strong>Django 5</strong> on the backend,
+      <strong>Bootstrap 5 + HTMX</strong> on the frontend, <strong>CodeMirror</strong> for in-browser YAML
+      editing, and <strong>Redis</strong> as both the Celery broker and the Channels layer. SQLite works fine
+      for a personal or small-team deployment; swapping to PostgreSQL for production requires a single
+      settings change.
+    </p>
+    <p>
+      Contributions, bug reports, and feature requests are welcome via
+      <a href="https://github.com/erelbi/talos-dashboard/issues">GitHub Issues</a>.
+    </p>
+  </div>
 </section>
 
 <!-- ── Footer ── -->
