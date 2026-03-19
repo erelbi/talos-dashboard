@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Delete Patch – Talos{% endblock %}
+{% block header %}Delete Patch Template{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:500px;margin:auto">
+  <div class="card-body">
+    <p>Are you sure you want to delete patch <strong>{{ patch.name }}</strong>?</p>
+    <p class="text-muted small">This will not affect jobs that already ran using this template.</p>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Delete</button>
+      <a href="{% url 'patches:list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

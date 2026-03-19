@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Users – Talos Dashboard{% endblock %}
+{% block header %}User Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <div class="card mb-4">
+      <div class="card-header">My Profile</div>
+      <div class="card-body">
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email|default:"—" }}</p>
+        <p><strong>Role:</strong>
+          <span class="badge bg-primary">{{ profile.get_role_display }}</span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if profile.is_admin and users %}
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">All Users</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Username</th><th>Email</th><th>Role</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for up in users %}
+            <tr>
+              <td>{{ up.user.username }}</td>
+              <td>{{ up.user.email|default:"—" }}</td>
+              <td><span class="badge bg-secondary">{{ up.get_role_display }}</span></td>
+              <td>
+                {% if up.user != user %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="user_id" value="{{ up.user.id }}">
+                  <select name="role" class="form-select form-select-sm d-inline-block w-auto me-1">
+                    {% for val, label in up.ROLE_CHOICES %}
+                      <option value="{{ val }}" {% if up.role == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+                {% else %}
+                  <span class="text-muted small">(you)</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

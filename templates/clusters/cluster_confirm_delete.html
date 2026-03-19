@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Delete Cluster – Talos{% endblock %}
+{% block header %}Delete Cluster{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:500px;margin:auto">
+  <div class="card-body">
+    <p>Are you sure you want to delete cluster <strong>{{ cluster.name }}</strong>?</p>
+    <p class="text-muted small">This will also delete all nodes and associated data. This action cannot be undone.</p>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+      <a href="{% url 'clusters:list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

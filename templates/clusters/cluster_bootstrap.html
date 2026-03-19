@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Bootstrap Cluster – Talos{% endblock %}
+{% block header %}Bootstrap New Cluster{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<style>
+  .wizard-stepper { display:flex; justify-content:center; gap:0; margin-bottom:2rem; }
+  .wizard-step { display:flex; align-items:center; gap:.5rem; }
+  .wizard-step .step-number {
+    width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-weight:bold; font-size:.9rem;
+    background:#2d3138; color:#adb5bd; border:2px solid #2d3138; transition:all .2s;
+  }
+  .wizard-step.active .step-number  { background:#0d6efd; border-color:#0d6efd; color:#fff; }
+  .wizard-step.done .step-number    { background:#198754; border-color:#198754; color:#fff; }
+  .wizard-step .step-label          { color:#adb5bd; font-size:.85rem; }
+  .wizard-step.active .step-label   { color:#fff; font-weight:500; }
+  .wizard-step.done .step-label     { color:#198754; }
+  .step-connector { width:60px; height:2px; background:#2d3138; align-self:center; margin:0 .5rem; }
+  .step-connector.done { background:#198754; }
+  .node-ip-row { display:flex; gap:.5rem; margin-bottom:.5rem; align-items:center; }
+  .node-ip-row input { flex:1; }
+  .CodeMirror { height:450px; font-size:.82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="mb-1"><i class="bi bi-rocket-takeoff me-1"></i> Bootstrap New Cluster</h5>
+    <span class="text-muted small">Generate and apply Talos configuration to new nodes</span>
+  </div>
+  <a href="{% url 'clusters:list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i> Back
+  </a>
+</div>
+
+<!-- Stepper -->
+<div class="wizard-stepper">
+  <div class="wizard-step {% if wizard_step == 1 %}active{% elif wizard_step > 1 %}done{% endif %}">
+    <span class="step-number">{% if wizard_step > 1 %}<i class="bi bi-check"></i>{% else %}1{% endif %}</span>
+    <span class="step-label">Cluster Info</span>
+  </div>
+  <div class="step-connector {% if wizard_step > 1 %}done{% endif %}"></div>
+  <div class="wizard-step {% if wizard_step == 2 %}active{% endif %}">
+    <span class="step-number">2</span>
+    <span class="step-label">Edit Configs</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="wizard-step">
+    <span class="step-number">3</span>
+    <span class="step-label">Apply</span>
+  </div>
+</div>
+
+{% if wizard_step == 1 or not wizard_step %}
+<!-- ═══════════════ STEP 1: Cluster Info ═══════════════ -->
+{% if form.errors %}
+<div class="alert alert-danger">
+  <strong>Validation errors:</strong>
+  <ul class="mb-0 mt-1">
+    {% for field, errors in form.errors.items %}{% for e in errors %}<li>{{ e }}</li>{% endfor %}{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" id="step1-form">
+  {% csrf_token %}
+  <input type="hidden" name="wizard_step" value="1">
+  <input type="hidden" name="controlplane_ips" id="cp-ips-hidden">
+  <input type="hidden" name="worker_ips" id="worker-ips-hidden">
+
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-info-circle me-1"></i> Cluster Details</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Cluster Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="cluster_name"
+                 value="{{ form.cluster_name.value|default:'' }}" placeholder="my-cluster" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Endpoint URL <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="endpoint"
+                 value="{{ form.endpoint.value|default:'' }}" placeholder="192.168.1.10:6443" required>
+          <div class="form-text">https:// prefix added automatically if omitted.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-hdd-stack me-1"></i> Control Plane Nodes</div>
+        <div class="card-body">
+          <div id="cp-container"></div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addIpRow('cp-container','192.168.1.10')">
+            <i class="bi bi-plus-lg"></i> Add
+          </button>
+          <div class="form-text mt-2">At least one required.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-server me-1"></i> Worker Nodes</div>
+        <div class="card-body">
+          <div id="worker-container"></div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addIpRow('worker-container','192.168.1.20')">
+            <i class="bi bi-plus-lg"></i> Add
+          </button>
+          <div class="form-text mt-2">Optional.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end">
+    <button type="button" class="btn btn-primary" onclick="submitStep1()">
+      Generate Configs <i class="bi bi-arrow-right ms-1"></i>
+    </button>
+  </div>
+</form>
+
+{% elif wizard_step == 2 %}
+<!-- ═══════════════ STEP 2: Edit Configs ═══════════════ -->
+<div class="alert alert-info d-flex gap-2 align-items-start">
+  <i class="bi bi-info-circle-fill mt-1"></i>
+  <div>
+    Configs generated for <strong>{{ cluster_name }}</strong> ({{ endpoint }}).
+    Edit below before applying. Nodes: CP={{ cp_ips|join:", " }}{% if worker_ips %}, Workers={{ worker_ips|join:", " }}{% endif %}
+  </div>
+</div>
+
+<form method="post" id="step2-form">
+  {% csrf_token %}
+  <input type="hidden" name="wizard_step" value="2">
+  <textarea id="cp-yaml-raw" name="cp_yaml" style="display:none">{{ cp_yaml }}</textarea>
+  <textarea id="worker-yaml-raw" name="worker_yaml" style="display:none">{{ worker_yaml }}</textarea>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-warning text-dark">Control Plane</span>
+          <span class="small">controlplane.yaml</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="cp-editor"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-secondary">Worker</span>
+          <span class="small">worker.yaml</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="worker-editor"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning d-flex gap-2">
+    <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+    <div>
+      <strong>Warning:</strong> This will:
+      <ol class="mb-0 mt-1">
+        <li>Apply configs to all listed nodes (existing configs overwritten)</li>
+        <li>Wait 10 seconds for nodes to initialize</li>
+        <li>Run <code>talosctl bootstrap</code> on <strong>{{ cp_ips.0 }}</strong> to start etcd</li>
+      </ol>
+      Nodes must be booted from Talos ISO and in maintenance mode.
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between">
+    <a href="{% url 'clusters:bootstrap' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Start Over
+    </a>
+    <button type="button" class="btn btn-success" onclick="submitStep2()">
+      <i class="bi bi-rocket-takeoff me-1"></i> Apply to Nodes
+    </button>
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if wizard_step == 1 or not wizard_step %}
+<script>
+function addIpRow(containerId, placeholder) {
+  const container = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'node-ip-row';
+  row.innerHTML = `
+    <input type="text" class="form-control form-control-sm ip-input"
+           placeholder="${placeholder}" pattern="^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$">
+    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.node-ip-row').remove()">
+      <i class="bi bi-trash"></i>
+    </button>`;
+  container.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function collectIps(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('.ip-input'))
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+function submitStep1() {
+  const name = document.querySelector('[name=cluster_name]').value.trim();
+  const endpoint = document.querySelector('[name=endpoint]').value.trim();
+  if (!name || !endpoint) { alert('Cluster name and endpoint are required.'); return; }
+
+  const cpIps = collectIps('cp-container');
+  if (cpIps.length === 0) { alert('At least one control plane node IP is required.'); return; }
+
+  const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+  for (const ip of [...cpIps, ...collectIps('worker-container')]) {
+    if (!ipRegex.test(ip)) { alert(`"${ip}" is not a valid IP address.`); return; }
+  }
+
+  document.getElementById('cp-ips-hidden').value = cpIps.join(', ');
+  document.getElementById('worker-ips-hidden').value = collectIps('worker-container').join(', ');
+  document.getElementById('step1-form').submit();
+}
+
+// Initialize with one empty row
+addIpRow('cp-container', '192.168.1.10');
+</script>
+
+{% elif wizard_step == 2 %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+<script>
+const cpRaw = document.getElementById('cp-yaml-raw');
+const workerRaw = document.getElementById('worker-yaml-raw');
+
+const cpEditor = CodeMirror(document.getElementById('cp-editor'), {
+  value: cpRaw.value,
+  mode: 'yaml',
+  theme: 'dracula',
+  lineNumbers: true,
+  indentUnit: 2,
+  tabSize: 2,
+});
+
+const workerEditor = CodeMirror(document.getElementById('worker-editor'), {
+  value: workerRaw.value,
+  mode: 'yaml',
+  theme: 'dracula',
+  lineNumbers: true,
+  indentUnit: 2,
+  tabSize: 2,
+});
+
+function submitStep2() {
+  if (!confirm('Apply configs to all listed nodes? This cannot be undone.')) return;
+  cpRaw.value = cpEditor.getValue();
+  workerRaw.value = workerEditor.getValue();
+  cpRaw.style.display = '';
+  workerRaw.style.display = '';
+  document.getElementById('step2-form').submit();
+}
+</script>
+{% endif %}
+{% endblock %}

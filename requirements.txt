@@ -1,0 +1,11 @@
+django>=5.0,<6.0
+channels>=4.0
+channels-redis>=4.0
+daphne>=4.0
+celery>=5.3
+redis>=5.0
+python-dotenv>=1.0
+django-crispy-forms>=2.0
+crispy-bootstrap5>=0.7
+django-auth-ldap>=4.6
+mozilla-django-oidc>=4.0
