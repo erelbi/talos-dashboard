@@ -592,8 +592,8 @@ def cluster_bootstrap(request):
 
         cluster_name = form.cleaned_data['cluster_name']
         endpoint = form.cleaned_data['endpoint']
-        cp_ips = form.cleaned_data['controlplane_ips']
-        worker_ips = form.cleaned_data['worker_ips']
+        cp_nodes = form.cleaned_data['controlplane_nodes']   # [{ip, hostname}, ...]
+        worker_nodes = form.cleaned_data['worker_nodes']
 
         output_dir = tempfile.mkdtemp(prefix='talos-bootstrap-')
         try:
@@ -630,8 +630,8 @@ def cluster_bootstrap(request):
         request.session['bootstrap'] = {
             'cluster_name': cluster_name,
             'endpoint': endpoint,
-            'cp_ips': cp_ips,
-            'worker_ips': worker_ips,
+            'cp_nodes': cp_nodes,
+            'worker_nodes': worker_nodes,
             'talosconfig': talosconfig_content,
             'cp_yaml': cp_yaml,
             'worker_yaml': worker_yaml,
@@ -641,8 +641,8 @@ def cluster_bootstrap(request):
             'wizard_step': 2,
             'cluster_name': cluster_name,
             'endpoint': endpoint,
-            'cp_ips': cp_ips,
-            'worker_ips': worker_ips,
+            'cp_nodes': cp_nodes,
+            'worker_nodes': worker_nodes,
             'cp_yaml': cp_yaml,
             'worker_yaml': worker_yaml,
         })
@@ -656,8 +656,8 @@ def cluster_bootstrap(request):
 
         cp_yaml = request.POST.get('cp_yaml', data['cp_yaml'])
         worker_yaml = request.POST.get('worker_yaml', data['worker_yaml'])
-        cp_ips = data['cp_ips']
-        worker_ips = data['worker_ips']
+        cp_nodes = data['cp_nodes']       # [{ip, hostname}, ...]
+        worker_nodes = data['worker_nodes']
         endpoint = data['endpoint']
         cluster_name = data['cluster_name']
         talosconfig_content = data['talosconfig']
@@ -672,7 +672,22 @@ def cluster_bootstrap(request):
 
         apply_errors = []
 
-        def _apply(ip, yaml_content, role):
+        def _patch_hostname(yaml_content, hostname):
+            """Inject machine.network.hostname into config YAML."""
+            if not hostname:
+                return yaml_content
+            try:
+                import yaml as _yaml
+                cfg = _yaml.safe_load(yaml_content)
+                cfg.setdefault('machine', {}).setdefault('network', {})['hostname'] = hostname
+                return _yaml.dump(cfg, default_flow_style=False, allow_unicode=True)
+            except Exception:
+                return yaml_content  # fall back to original if YAML manipulation fails
+
+        def _apply(node_info, base_yaml, role):
+            ip = node_info['ip']
+            hostname = node_info.get('hostname', '')
+            yaml_content = _patch_hostname(base_yaml, hostname)
             tmp = tempfile.NamedTemporaryFile(
                 mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
             )
@@ -684,7 +699,11 @@ def cluster_bootstrap(request):
                     r = t.apply_config(ip, tmp.name, insecure=True)
                 if r['success']:
                     Node.objects.create(
-                        cluster=cluster, ip_address=ip, role=role, status='provisioning'
+                        cluster=cluster,
+                        ip_address=ip,
+                        hostname=hostname,
+                        role=role,
+                        status='provisioning',
                     )
                 else:
                     apply_errors.append(f'{ip}: {r["stderr"] or r["stdout"]}')
@@ -692,22 +711,22 @@ def cluster_bootstrap(request):
                 if os.path.exists(tmp.name):
                     os.unlink(tmp.name)
 
-        for ip in cp_ips:
-            _apply(ip, cp_yaml, Node.ROLE_CONTROLPLANE)
+        for node_info in cp_nodes:
+            _apply(node_info, cp_yaml, Node.ROLE_CONTROLPLANE)
 
         if worker_yaml:
-            for ip in worker_ips:
-                _apply(ip, worker_yaml, Node.ROLE_WORKER)
+            for node_info in worker_nodes:
+                _apply(node_info, worker_yaml, Node.ROLE_WORKER)
 
         # Bootstrap etcd on the first control plane node
         bootstrap_error = None
-        if cp_ips and not apply_errors:
+        if cp_nodes and not apply_errors:
             try:
                 import time as _time
                 # Wait for the node to finish initial setup before bootstrapping
                 _time.sleep(10)
                 with TalosctlRunner(cluster) as t:
-                    r = t.bootstrap(cp_ips[0])
+                    r = t.bootstrap(cp_nodes[0]['ip'])
                 if not r['success']:
                     bootstrap_error = r['stderr'] or r['stdout'] or 'Unknown error'
             except Exception as e:

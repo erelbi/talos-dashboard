@@ -115,14 +115,15 @@ class ClusterBootstrapForm(forms.Form):
         help_text='Cluster endpoint URL (e.g. https://192.168.1.10:6443).',
         widget=forms.TextInput(attrs={'placeholder': 'https://192.168.1.10:6443'}),
     )
-    controlplane_ips = forms.CharField(
-        help_text='Comma-separated control plane node IPs.',
-        widget=forms.TextInput(attrs={'placeholder': '192.168.1.10, 192.168.1.11'}),
+    # Encoded as "ip:hostname,ip:hostname" — hostname part is optional
+    controlplane_nodes = forms.CharField(
+        help_text='Control plane nodes as ip:hostname pairs.',
+        widget=forms.HiddenInput(),
     )
-    worker_ips = forms.CharField(
+    worker_nodes = forms.CharField(
         required=False,
-        help_text='Comma-separated worker node IPs (optional).',
-        widget=forms.TextInput(attrs={'placeholder': '192.168.1.20, 192.168.1.21'}),
+        help_text='Worker nodes as ip:hostname pairs (optional).',
+        widget=forms.HiddenInput(),
     )
 
     def clean_endpoint(self):
@@ -131,31 +132,39 @@ class ClusterBootstrapForm(forms.Form):
             endpoint = 'https://' + endpoint
         return endpoint
 
-    def _parse_ips(self, raw):
-        ips = []
+    def _parse_nodes(self, raw):
+        """Parse 'ip:hostname,ip:hostname' into list of {'ip': ..., 'hostname': ...}."""
+        nodes = []
         for part in raw.split(','):
             part = part.strip()
             if not part:
                 continue
+            if ':' in part:
+                ip, hostname = part.split(':', 1)
+                ip = ip.strip()
+                hostname = hostname.strip()
+            else:
+                ip = part.strip()
+                hostname = ''
             try:
-                ipaddress.ip_address(part)
+                ipaddress.ip_address(ip)
             except ValueError:
-                raise forms.ValidationError(f'"{part}" is not a valid IP address.')
-            ips.append(part)
-        return ips
+                raise forms.ValidationError(f'"{ip}" is not a valid IP address.')
+            nodes.append({'ip': ip, 'hostname': hostname})
+        return nodes
 
-    def clean_controlplane_ips(self):
-        raw = self.cleaned_data.get('controlplane_ips', '')
-        ips = self._parse_ips(raw)
-        if not ips:
-            raise forms.ValidationError('At least one control plane IP is required.')
-        return ips
+    def clean_controlplane_nodes(self):
+        raw = self.cleaned_data.get('controlplane_nodes', '')
+        nodes = self._parse_nodes(raw)
+        if not nodes:
+            raise forms.ValidationError('At least one control plane node IP is required.')
+        return nodes
 
-    def clean_worker_ips(self):
-        raw = self.cleaned_data.get('worker_ips', '')
+    def clean_worker_nodes(self):
+        raw = self.cleaned_data.get('worker_nodes', '')
         if not raw.strip():
             return []
-        return self._parse_ips(raw)
+        return self._parse_nodes(raw)
 
 
 class NodeApplyConfigForm(forms.Form):
