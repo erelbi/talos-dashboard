@@ -9,3 +9,4 @@ django-crispy-forms>=2.0
 crispy-bootstrap5>=0.7
 django-auth-ldap>=4.6
 mozilla-django-oidc>=4.0
+pyyaml>=6.0
