@@ -752,9 +752,11 @@ def cluster_bootstrap(request):
             except Exception:
                 return yaml_content  # fall back to original if YAML manipulation fails
 
-        def _apply(node_info, base_yaml, role, net_config=None):
+        def _apply(node_info, base_yaml, role, role_net_config=None):
             ip = node_info['ip']
             hostname = node_info.get('hostname', '')
+            # Per-node override takes priority over role-level default
+            net_config = node_info.get('net_config') or role_net_config
             yaml_content = _patch_node_config(base_yaml, hostname, ip, net_config)
             tmp = tempfile.NamedTemporaryFile(
                 mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
@@ -780,11 +782,11 @@ def cluster_bootstrap(request):
                     os.unlink(tmp.name)
 
         for node_info in cp_nodes:
-            _apply(node_info, cp_yaml, Node.ROLE_CONTROLPLANE, net_config=cp_net_config)
+            _apply(node_info, cp_yaml, Node.ROLE_CONTROLPLANE, role_net_config=cp_net_config)
 
         if worker_yaml:
             for node_info in worker_nodes:
-                _apply(node_info, worker_yaml, Node.ROLE_WORKER, net_config=worker_net_config)
+                _apply(node_info, worker_yaml, Node.ROLE_WORKER, role_net_config=worker_net_config)
 
         # Bootstrap etcd on the first control plane node
         bootstrap_error = None

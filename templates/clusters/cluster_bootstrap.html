@@ -20,9 +20,12 @@
   .wizard-step.done .step-label     { color:#198754; }
   .step-connector { width:60px; height:2px; background:#2d3138; align-self:center; margin:0 .5rem; }
   .step-connector.done { background:#198754; }
-  .node-row { display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; margin-bottom:.5rem; align-items:center; }
-  .node-row-header { display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; margin-bottom:.25rem; }
+  .node-row { display:grid; grid-template-columns:1fr 1fr auto auto; gap:.5rem; margin-bottom:.35rem; align-items:center; }
+  .node-row-header { display:grid; grid-template-columns:1fr 1fr auto auto; gap:.5rem; margin-bottom:.25rem; }
   .node-row-header span { font-size:.75rem; color:#adb5bd; padding-left:2px; }
+  .node-wrapper { margin-bottom:.5rem; }
+  .node-override-panel { border:1px solid #3d4148; border-radius:.375rem; padding:.75rem; margin-top:.35rem; background:#1e2128; }
+  .node-override-panel .small-label { font-size:.72rem; color:#adb5bd; }
   .CodeMirror { height:450px; font-size:.82rem; }
   #net-config-collapse.show ~ .card-header #net-config-chevron,
   .net-config-chevron-rotated { transform: rotate(90deg); }
@@ -109,10 +112,11 @@
           <div class="node-row-header">
             <span>IP Address <span class="text-danger">*</span></span>
             <span>Hostname <span class="text-muted">(optional)</span></span>
+            <span title="Per-node network override"><i class="bi bi-diagram-3 text-muted"></i></span>
             <span></span>
           </div>
           <div id="cp-container"></div>
-          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addNodeRow('cp-container','192.168.1.10','cp-1')">
+          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addNodeRow('cp-container','cp')">
             <i class="bi bi-plus-lg"></i> Add Node
           </button>
           <div class="form-text mt-2">At least one required. First node will be bootstrapped.</div>
@@ -126,10 +130,11 @@
           <div class="node-row-header">
             <span>IP Address</span>
             <span>Hostname <span class="text-muted">(optional)</span></span>
+            <span title="Per-node network override"><i class="bi bi-diagram-3 text-muted"></i></span>
             <span></span>
           </div>
           <div id="worker-container"></div>
-          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addNodeRow('worker-container','192.168.1.20','worker-1')">
+          <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addNodeRow('worker-container','worker')">
             <i class="bi bi-plus-lg"></i> Add Node
           </button>
           <div class="form-text mt-2">Optional.</div>
@@ -146,7 +151,7 @@
               aria-expanded="false" aria-controls="net-config-collapse">
         <i class="bi bi-chevron-right" id="net-config-chevron" style="transition:transform .2s;"></i>
         <span><i class="bi bi-diagram-3 me-1"></i> Advanced: Network Configuration (Bond / VLAN)</span>
-        <span class="badge bg-secondary ms-2">Optional</span>
+        <span class="badge bg-secondary ms-2">Default for all nodes — override per node with ⚙</span>
       </button>
     </div>
     <div class="collapse" id="net-config-collapse">
@@ -265,30 +270,149 @@
 {% if wizard_step == 1 or not wizard_step %}
 <script>
 /* ── Node rows ─────────────────────────────────────────────────────────── */
-function addNodeRow(containerId, ipPlaceholder, hostnamePlaceholder) {
+let _nodeCounters = {cp: 0, worker: 0};
+
+function addNodeRow(containerId, role) {
   const container = document.getElementById(containerId);
-  const row = document.createElement('div');
-  row.className = 'node-row';
-  row.innerHTML = `
-    <input type="text" class="form-control form-control-sm ip-input"
-           placeholder="${ipPlaceholder}" pattern="^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$">
-    <input type="text" class="form-control form-control-sm hostname-input"
-           placeholder="${hostnamePlaceholder}" pattern="^[a-z0-9][a-z0-9\\-]*$">
-    <button type="button" class="btn btn-outline-danger btn-sm"
-            onclick="this.closest('.node-row').remove()">
-      <i class="bi bi-trash"></i>
-    </button>`;
-  container.appendChild(row);
-  row.querySelector('.ip-input').focus();
+  const idx = _nodeCounters[role]++;
+  const netPrefix = `node-${role}-${idx}`;
+  const ipPh = role === 'cp' ? `192.168.1.${10 + idx}` : `192.168.1.${20 + idx}`;
+  const hPh  = role === 'cp' ? `cp-${idx + 1}` : `worker-${idx + 1}`;
+  const panelId = `override-panel-${netPrefix}`;
+  const toggleId = `override-toggle-${netPrefix}`;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'node-wrapper';
+  wrapper.dataset.netPrefix = netPrefix;
+  wrapper.innerHTML = `
+    <div class="node-row">
+      <input type="text" class="form-control form-control-sm ip-input"
+             placeholder="${ipPh}" pattern="^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$">
+      <input type="text" class="form-control form-control-sm hostname-input"
+             placeholder="${hPh}">
+      <div class="form-check form-switch mb-0" title="Per-node network override">
+        <input class="form-check-input node-net-override-toggle" type="checkbox"
+               id="${toggleId}" style="cursor:pointer;"
+               onchange="toggleNodeOverride('${panelId}', this)">
+        <label class="form-check-label small text-muted" for="${toggleId}" style="cursor:pointer;">⚙</label>
+      </div>
+      <button type="button" class="btn btn-outline-danger btn-sm"
+              onclick="this.closest('.node-wrapper').remove()">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+    <div id="${panelId}" class="node-override-panel" style="display:none;">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="small fw-semibold"><i class="bi bi-diagram-3 me-1"></i> Network Override for this node</span>
+        <span class="badge bg-warning text-dark small">Overrides role default</span>
+      </div>
+      ${buildNetConfigHTML(netPrefix)}
+    </div>`;
+  container.appendChild(wrapper);
+  wrapper.querySelector('.ip-input').focus();
+}
+
+function toggleNodeOverride(panelId, checkbox) {
+  document.getElementById(panelId).style.display = checkbox.checked ? '' : 'none';
 }
 
 function collectNodes(containerId) {
-  return Array.from(document.getElementById(containerId).querySelectorAll('.node-row'))
-    .map(row => ({
-      ip: row.querySelector('.ip-input').value.trim(),
-      hostname: row.querySelector('.hostname-input').value.trim(),
-    }))
-    .filter(n => n.ip);
+  return Array.from(document.getElementById(containerId).querySelectorAll('.node-wrapper'))
+    .map(wrapper => {
+      const ip = wrapper.querySelector('.ip-input').value.trim();
+      if (!ip) return null;
+      const overrideToggle = wrapper.querySelector('.node-net-override-toggle');
+      const overrideEnabled = overrideToggle && overrideToggle.checked;
+      return {
+        ip: ip,
+        hostname: wrapper.querySelector('.hostname-input').value.trim(),
+        net_config: overrideEnabled ? JSON.parse(collectNetConfig(wrapper.dataset.netPrefix)) : null,
+      };
+    })
+    .filter(n => n !== null);
+}
+
+/* ── Build net config panel HTML (for per-node override) ────────────────── */
+function buildNetConfigHTML(p) {
+  return `
+    <div class="mb-2">
+      <label class="small-label">Interface Type</label>
+      <div class="d-flex gap-3 mt-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="${p}-net-type" id="${p}-type-physical" value="physical" checked
+                 onchange="netToggleType('${p}')">
+          <label class="form-check-label small" for="${p}-type-physical">Physical NIC</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="${p}-net-type" id="${p}-type-bond" value="bond"
+                 onchange="netToggleType('${p}')">
+          <label class="form-check-label small" for="${p}-type-bond">Bond</label>
+        </div>
+      </div>
+    </div>
+    <div id="${p}-physical-section" class="net-section visible mb-2">
+      <label class="small-label">NIC Name</label>
+      <input type="text" class="form-control form-control-sm mt-1" id="${p}-nic-name" placeholder="eth0" style="max-width:160px;">
+    </div>
+    <div id="${p}-bond-section" class="net-section mb-2">
+      <div class="row g-2">
+        <div class="col-sm-4">
+          <label class="small-label">Bond Name</label>
+          <input type="text" class="form-control form-control-sm mt-1" id="${p}-bond-name" placeholder="bond0">
+        </div>
+        <div class="col-sm-8">
+          <label class="small-label">Member NICs (comma-separated)</label>
+          <input type="text" class="form-control form-control-sm mt-1" id="${p}-bond-members" placeholder="eth0, eth1">
+        </div>
+        <div class="col-sm-4">
+          <label class="small-label">Bond Mode</label>
+          <select class="form-select form-select-sm mt-1" id="${p}-bond-mode"
+                  onchange="netToggleLacpRate('${p}')">
+            <option value="802.3ad">802.3ad (LACP)</option>
+            <option value="active-backup">active-backup</option>
+            <option value="balance-rr">balance-rr</option>
+            <option value="balance-xor">balance-xor</option>
+          </select>
+        </div>
+        <div class="col-sm-4" id="${p}-lacp-row">
+          <label class="small-label">LACP Rate</label>
+          <select class="form-select form-select-sm mt-1" id="${p}-lacp-rate">
+            <option value="fast">fast</option>
+            <option value="slow">slow</option>
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label class="small-label">MII Monitor (ms)</label>
+          <input type="number" class="form-control form-control-sm mt-1" id="${p}-miimon" value="100" min="0">
+        </div>
+      </div>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col-sm-3">
+        <label class="small-label">Prefix</label>
+        <div class="input-group input-group-sm mt-1" style="max-width:100px;">
+          <span class="input-group-text">/</span>
+          <input type="number" class="form-control" id="${p}-prefix" value="24" min="0" max="32">
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <label class="small-label">Gateway</label>
+        <input type="text" class="form-control form-control-sm mt-1" id="${p}-gateway" placeholder="192.168.1.1">
+      </div>
+      <div class="col-sm-5">
+        <label class="small-label">DNS Servers (comma-separated)</label>
+        <input type="text" class="form-control form-control-sm mt-1" id="${p}-dns" placeholder="8.8.8.8, 1.1.1.1">
+      </div>
+    </div>
+    <div class="mb-1 d-flex align-items-center justify-content-between">
+      <span class="small-label">VLANs</span>
+      <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2"
+              onclick="addVlanRow('${p}')"><i class="bi bi-plus-lg"></i> VLAN</button>
+    </div>
+    <div class="vlan-row-header">
+      <span>VLAN ID</span><span>DHCP</span><span>IP / CIDR</span><span></span>
+    </div>
+    <div id="${p}-vlan-container"></div>`;
 }
 
 /* ── Network config tabs ────────────────────────────────────────────────── */
@@ -338,7 +462,9 @@ function toggleVlanIp(checkbox) {
 
 function collectNetConfig(tabPrefix) {
   const enabledEl = document.getElementById(`${tabPrefix}-net-enabled`);
-  if (!enabledEl || !enabledEl.checked) return JSON.stringify({enabled: false});
+  // If no enable toggle exists (per-node panels), treat as enabled since
+  // the panel is already gated by the per-node override checkbox.
+  if (enabledEl && !enabledEl.checked) return JSON.stringify({enabled: false});
 
   const typeEl = document.querySelector(`[name="${tabPrefix}-net-type"]:checked`);
   const type = typeEl ? typeEl.value : 'physical';
@@ -402,10 +528,9 @@ function submitStep1() {
     if (!ipRegex.test(n.ip)) { alert(`"${n.ip}" is not a valid IP address.`); return; }
   }
 
-  // Encode nodes as "ip:hostname,ip:hostname"
-  const encode = nodes => nodes.map(n => n.ip + ':' + n.hostname).join(',');
-  document.getElementById('cp-nodes-hidden').value = encode(cpNodes);
-  document.getElementById('worker-nodes-hidden').value = encode(collectNodes('worker-container'));
+  // Encode nodes as JSON array [{ip, hostname, net_config}, ...]
+  document.getElementById('cp-nodes-hidden').value = JSON.stringify(cpNodes);
+  document.getElementById('worker-nodes-hidden').value = JSON.stringify(collectNodes('worker-container'));
 
   // Encode network configs as JSON
   document.getElementById('cp-net-hidden').value = collectNetConfig('cp');
@@ -417,7 +542,7 @@ function submitStep1() {
 }
 
 // Initialize with one empty row
-addNodeRow('cp-container', '192.168.1.10', 'cp-1');
+addNodeRow('cp-container', 'cp');
 </script>
 
 {% elif wizard_step == 2 %}

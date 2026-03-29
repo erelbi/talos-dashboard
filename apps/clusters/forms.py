@@ -182,7 +182,32 @@ class ClusterBootstrapForm(forms.Form):
         return endpoint
 
     def _parse_nodes(self, raw):
-        """Parse 'ip:hostname,ip:hostname' into list of {'ip': ..., 'hostname': ...}."""
+        """Parse JSON array [{ip, hostname, net_config?}, ...] into validated node list."""
+        raw = raw.strip()
+        if not raw:
+            return []
+        # JSON array format (new)
+        if raw.startswith('['):
+            try:
+                items = json.loads(raw)
+            except (json.JSONDecodeError, ValueError) as exc:
+                raise forms.ValidationError(f'Invalid node data JSON: {exc}')
+            nodes = []
+            for item in items:
+                ip = item.get('ip', '').strip()
+                if not ip:
+                    continue
+                try:
+                    ipaddress.ip_address(ip)
+                except ValueError:
+                    raise forms.ValidationError(f'"{ip}" is not a valid IP address.')
+                nodes.append({
+                    'ip': ip,
+                    'hostname': item.get('hostname', '').strip(),
+                    'net_config': item.get('net_config') or None,
+                })
+            return nodes
+        # Legacy comma-separated 'ip:hostname' format (backwards compat)
         nodes = []
         for part in raw.split(','):
             part = part.strip()
@@ -199,7 +224,7 @@ class ClusterBootstrapForm(forms.Form):
                 ipaddress.ip_address(ip)
             except ValueError:
                 raise forms.ValidationError(f'"{ip}" is not a valid IP address.')
-            nodes.append({'ip': ip, 'hostname': hostname})
+            nodes.append({'ip': ip, 'hostname': hostname, 'net_config': None})
         return nodes
 
     def clean_controlplane_nodes(self):
