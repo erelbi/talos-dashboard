@@ -24,6 +24,13 @@
   .node-row-header { display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; margin-bottom:.25rem; }
   .node-row-header span { font-size:.75rem; color:#adb5bd; padding-left:2px; }
   .CodeMirror { height:450px; font-size:.82rem; }
+  #net-config-collapse.show ~ .card-header #net-config-chevron,
+  .net-config-chevron-rotated { transform: rotate(90deg); }
+  .vlan-row { display:grid; grid-template-columns:80px auto 1fr auto; gap:.5rem; align-items:center; margin-bottom:.4rem; }
+  .vlan-row-header { display:grid; grid-template-columns:80px auto 1fr auto; gap:.5rem; margin-bottom:.25rem; }
+  .vlan-row-header span { font-size:.75rem; color:#adb5bd; padding-left:2px; }
+  .net-section { display:none; }
+  .net-section.visible { display:block; }
 </style>
 {% endblock %}
 
@@ -72,6 +79,8 @@
   <input type="hidden" name="wizard_step" value="1">
   <input type="hidden" name="controlplane_nodes" id="cp-nodes-hidden">
   <input type="hidden" name="worker_nodes" id="worker-nodes-hidden">
+  <input type="hidden" name="cp_net_config" id="cp-net-hidden">
+  <input type="hidden" name="worker_net_config" id="worker-net-hidden">
 
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-info-circle me-1"></i> Cluster Details</div>
@@ -127,6 +136,51 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Advanced: Network Configuration (Bond / VLAN) -->
+  <div class="card mb-3">
+    <div class="card-header">
+      <button class="btn btn-link p-0 text-decoration-none d-flex align-items-center gap-2 w-100"
+              type="button" data-bs-toggle="collapse" data-bs-target="#net-config-collapse"
+              aria-expanded="false" aria-controls="net-config-collapse">
+        <i class="bi bi-chevron-right" id="net-config-chevron" style="transition:transform .2s;"></i>
+        <span><i class="bi bi-diagram-3 me-1"></i> Advanced: Network Configuration (Bond / VLAN)</span>
+        <span class="badge bg-secondary ms-2">Optional</span>
+      </button>
+    </div>
+    <div class="collapse" id="net-config-collapse">
+      <div class="card-body">
+        <!-- Bootstrap tabs: CP / Worker -->
+        <ul class="nav nav-tabs mb-3" id="net-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="net-cp-tab" data-bs-toggle="tab"
+                    data-bs-target="#net-cp-pane" type="button" role="tab">
+              <i class="bi bi-hdd-stack me-1"></i> Control Plane
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="net-worker-tab" data-bs-toggle="tab"
+                    data-bs-target="#net-worker-pane" type="button" role="tab">
+              <i class="bi bi-server me-1"></i> Workers
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="net-tabs-content">
+
+          <!-- Control Plane tab -->
+          <div class="tab-pane fade show active" id="net-cp-pane" role="tabpanel">
+            {% include "clusters/_net_config_tab.html" with tab_prefix="cp" %}
+          </div>
+
+          <!-- Worker tab -->
+          <div class="tab-pane fade" id="net-worker-pane" role="tabpanel">
+            {% include "clusters/_net_config_tab.html" with tab_prefix="worker" %}
+          </div>
+
+        </div><!-- /.tab-content -->
+      </div><!-- /.card-body -->
+    </div><!-- /.collapse -->
   </div>
 
   <div class="d-flex justify-content-end">
@@ -210,6 +264,7 @@
 {% block extra_js %}
 {% if wizard_step == 1 or not wizard_step %}
 <script>
+/* ── Node rows ─────────────────────────────────────────────────────────── */
 function addNodeRow(containerId, ipPlaceholder, hostnamePlaceholder) {
   const container = document.getElementById(containerId);
   const row = document.createElement('div');
@@ -236,6 +291,103 @@ function collectNodes(containerId) {
     .filter(n => n.ip);
 }
 
+/* ── Network config tabs ────────────────────────────────────────────────── */
+function netToggleEnable(tabPrefix) {
+  const enabled = document.getElementById(`${tabPrefix}-net-enabled`).checked;
+  const body = document.getElementById(`${tabPrefix}-net-body`);
+  body.style.display = enabled ? '' : 'none';
+}
+
+function netToggleType(tabPrefix) {
+  const type = document.querySelector(`[name="${tabPrefix}-net-type"]:checked`);
+  if (!type) return;
+  const isPhysical = type.value === 'physical';
+  document.getElementById(`${tabPrefix}-physical-section`).classList.toggle('visible', isPhysical);
+  document.getElementById(`${tabPrefix}-bond-section`).classList.toggle('visible', !isPhysical);
+}
+
+function netToggleLacpRate(tabPrefix) {
+  const mode = document.getElementById(`${tabPrefix}-bond-mode`).value;
+  const row = document.getElementById(`${tabPrefix}-lacp-row`);
+  row.style.display = mode === '802.3ad' ? '' : 'none';
+}
+
+function addVlanRow(tabPrefix) {
+  const container = document.getElementById(`${tabPrefix}-vlan-container`);
+  const row = document.createElement('div');
+  row.className = 'vlan-row';
+  row.innerHTML = `
+    <input type="number" class="form-control form-control-sm vlan-id" placeholder="100" min="1" max="4094">
+    <div class="form-check">
+      <input class="form-check-input vlan-dhcp" type="checkbox"
+             onchange="toggleVlanIp(this)">
+      <label class="form-check-label small">DHCP</label>
+    </div>
+    <input type="text" class="form-control form-control-sm vlan-ip" placeholder="10.0.100.10/24">
+    <button type="button" class="btn btn-outline-danger btn-sm"
+            onclick="this.closest('.vlan-row').remove()">
+      <i class="bi bi-trash"></i>
+    </button>`;
+  container.appendChild(row);
+}
+
+function toggleVlanIp(checkbox) {
+  const ipInput = checkbox.closest('.vlan-row').querySelector('.vlan-ip');
+  ipInput.style.display = checkbox.checked ? 'none' : '';
+}
+
+function collectNetConfig(tabPrefix) {
+  const enabledEl = document.getElementById(`${tabPrefix}-net-enabled`);
+  if (!enabledEl || !enabledEl.checked) return JSON.stringify({enabled: false});
+
+  const typeEl = document.querySelector(`[name="${tabPrefix}-net-type"]:checked`);
+  const type = typeEl ? typeEl.value : 'physical';
+
+  const config = {
+    enabled: true,
+    type: type,
+  };
+
+  if (type === 'physical') {
+    config.interface = (document.getElementById(`${tabPrefix}-nic-name`).value || '').trim();
+  } else {
+    config.bond_name = (document.getElementById(`${tabPrefix}-bond-name`).value || '').trim();
+    const membersRaw = (document.getElementById(`${tabPrefix}-bond-members`).value || '').trim();
+    config.bond_members = membersRaw ? membersRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    config.bond_mode = document.getElementById(`${tabPrefix}-bond-mode`).value;
+    config.lacp_rate = document.getElementById(`${tabPrefix}-lacp-rate`).value;
+    config.miimon = parseInt(document.getElementById(`${tabPrefix}-miimon`).value || '100', 10);
+  }
+
+  config.prefix = parseInt(document.getElementById(`${tabPrefix}-prefix`).value || '24', 10);
+  config.gateway = (document.getElementById(`${tabPrefix}-gateway`).value || '').trim();
+  const dnsRaw = (document.getElementById(`${tabPrefix}-dns`).value || '').trim();
+  config.nameservers = dnsRaw ? dnsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const vlans = [];
+  document.querySelectorAll(`#${tabPrefix}-vlan-container .vlan-row`).forEach(row => {
+    const idVal = parseInt(row.querySelector('.vlan-id').value || '0', 10);
+    if (!idVal) return;
+    const dhcp = row.querySelector('.vlan-dhcp').checked;
+    const address = dhcp ? '' : (row.querySelector('.vlan-ip').value || '').trim();
+    vlans.push({id: idVal, dhcp: dhcp, address: address});
+  });
+  config.vlans = vlans;
+
+  return JSON.stringify(config);
+}
+
+/* ── Chevron animation for collapse ────────────────────────────────────── */
+(function () {
+  const collapseEl = document.getElementById('net-config-collapse');
+  const chevron = document.getElementById('net-config-chevron');
+  if (collapseEl && chevron) {
+    collapseEl.addEventListener('show.bs.collapse', () => chevron.classList.add('net-config-chevron-rotated'));
+    collapseEl.addEventListener('hide.bs.collapse', () => chevron.classList.remove('net-config-chevron-rotated'));
+  }
+})();
+
+/* ── Submit ─────────────────────────────────────────────────────────────── */
 function submitStep1() {
   const name = document.querySelector('[name=cluster_name]').value.trim();
   const endpoint = document.querySelector('[name=endpoint]').value.trim();
@@ -250,10 +402,14 @@ function submitStep1() {
     if (!ipRegex.test(n.ip)) { alert(`"${n.ip}" is not a valid IP address.`); return; }
   }
 
-  // Encode as "ip:hostname,ip:hostname"
+  // Encode nodes as "ip:hostname,ip:hostname"
   const encode = nodes => nodes.map(n => n.ip + ':' + n.hostname).join(',');
   document.getElementById('cp-nodes-hidden').value = encode(cpNodes);
   document.getElementById('worker-nodes-hidden').value = encode(collectNodes('worker-container'));
+
+  // Encode network configs as JSON
+  document.getElementById('cp-net-hidden').value = collectNetConfig('cp');
+  document.getElementById('worker-net-hidden').value = collectNetConfig('worker');
 
   const btn = document.querySelector('[onclick="submitStep1()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }

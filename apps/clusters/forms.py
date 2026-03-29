@@ -1,4 +1,5 @@
 import ipaddress
+import json
 import re
 
 import yaml
@@ -125,6 +126,54 @@ class ClusterBootstrapForm(forms.Form):
         help_text='Worker nodes as ip:hostname pairs (optional).',
         widget=forms.HiddenInput(),
     )
+    cp_net_config = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        help_text='JSON-encoded network config for control plane nodes.',
+    )
+    worker_net_config = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        help_text='JSON-encoded network config for worker nodes.',
+    )
+
+    def _parse_net_config(self, raw):
+        """Parse and validate a JSON network config string, returning a dict."""
+        if not raw or not raw.strip():
+            return {'enabled': False}
+        try:
+            cfg = json.loads(raw)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise forms.ValidationError(f'Invalid JSON for network config: {exc}')
+        if not isinstance(cfg, dict):
+            raise forms.ValidationError('Network config must be a JSON object.')
+        if not cfg.get('enabled', False):
+            return {'enabled': False}
+        # Basic structural validation when enabled
+        if cfg.get('type') == 'bond':
+            if not cfg.get('bond_name', '').strip():
+                raise forms.ValidationError('Bond name is required when type is bond.')
+            if not cfg.get('bond_members'):
+                raise forms.ValidationError('At least one bond member NIC is required.')
+        else:
+            if not cfg.get('interface', '').strip():
+                raise forms.ValidationError('Interface name is required for Physical NIC type.')
+        prefix = cfg.get('prefix')
+        if prefix is not None:
+            try:
+                prefix = int(prefix)
+                if not (0 <= prefix <= 32):
+                    raise forms.ValidationError('Subnet prefix must be between 0 and 32.')
+                cfg['prefix'] = prefix
+            except (TypeError, ValueError):
+                raise forms.ValidationError('Subnet prefix must be an integer.')
+        return cfg
+
+    def clean_cp_net_config(self):
+        return self._parse_net_config(self.cleaned_data.get('cp_net_config', ''))
+
+    def clean_worker_net_config(self):
+        return self._parse_net_config(self.cleaned_data.get('worker_net_config', ''))
 
     def clean_endpoint(self):
         endpoint = self.cleaned_data.get('endpoint', '').strip()

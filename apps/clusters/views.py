@@ -626,6 +626,9 @@ def cluster_bootstrap(request):
         finally:
             shutil.rmtree(output_dir, ignore_errors=True)
 
+        cp_net_config = form.cleaned_data.get('cp_net_config', {'enabled': False})
+        worker_net_config = form.cleaned_data.get('worker_net_config', {'enabled': False})
+
         # Store everything in session for step 2
         request.session['bootstrap'] = {
             'cluster_name': cluster_name,
@@ -635,6 +638,8 @@ def cluster_bootstrap(request):
             'talosconfig': talosconfig_content,
             'cp_yaml': cp_yaml,
             'worker_yaml': worker_yaml,
+            'cp_net_config': cp_net_config,
+            'worker_net_config': worker_net_config,
         }
 
         return render(request, 'clusters/cluster_bootstrap.html', {
@@ -661,6 +666,8 @@ def cluster_bootstrap(request):
         endpoint = data['endpoint']
         cluster_name = data['cluster_name']
         talosconfig_content = data['talosconfig']
+        cp_net_config = data.get('cp_net_config', {'enabled': False})
+        worker_net_config = data.get('worker_net_config', {'enabled': False})
 
         endpoint_clean = endpoint.replace('https://', '').replace('http://', '').rstrip('/')
         cluster = Cluster.objects.create(
@@ -672,22 +679,83 @@ def cluster_bootstrap(request):
 
         apply_errors = []
 
-        def _patch_hostname(yaml_content, hostname):
-            """Inject machine.network.hostname into config YAML."""
-            if not hostname:
+        def _build_network_patch(node_ip, net_config):
+            """Build a machine.network dict from net_config and the node's IP."""
+            if not net_config or not net_config.get('enabled'):
+                return None
+            prefix = net_config.get('prefix', 24)
+            address = f"{node_ip}/{prefix}"
+            gateway = net_config.get('gateway', '')
+            nameservers = [s.strip() for s in net_config.get('nameservers', []) if s.strip()]
+
+            iface_entry = {}
+            if net_config.get('type') == 'bond':
+                bond_name = net_config.get('bond_name', 'bond0')
+                members = [m.strip() for m in net_config.get('bond_members', []) if m.strip()]
+                bond_mode = net_config.get('bond_mode', '802.3ad')
+                bond_def = {
+                    'mode': bond_mode,
+                    'miimon': int(net_config.get('miimon', 100)),
+                    'interfaces': members,
+                }
+                if bond_mode == '802.3ad':
+                    bond_def['lacpRate'] = net_config.get('lacp_rate', 'fast')
+                iface_entry['interface'] = bond_name
+                iface_entry['bond'] = bond_def
+            else:
+                iface_entry['interface'] = net_config.get('interface', 'eth0')
+
+            iface_entry['dhcp'] = False
+            iface_entry['addresses'] = [address]
+            if gateway:
+                iface_entry['routes'] = [{'network': '0.0.0.0/0', 'gateway': gateway}]
+
+            vlans_raw = net_config.get('vlans', [])
+            vlans = []
+            for v in vlans_raw:
+                vlan_entry = {'vlanId': int(v['id']), 'dhcp': bool(v.get('dhcp', False))}
+                if not vlan_entry['dhcp'] and v.get('address', '').strip():
+                    vlan_entry['addresses'] = [v['address'].strip()]
+                vlans.append(vlan_entry)
+            if vlans:
+                iface_entry['vlans'] = vlans
+
+            patch = {'interfaces': [iface_entry]}
+            if nameservers:
+                patch['nameservers'] = nameservers
+            return patch
+
+        def _patch_node_config(yaml_content, hostname, node_ip, net_config):
+            """Inject hostname and/or network config into machine config YAML."""
+            if not hostname and not (net_config and net_config.get('enabled')):
                 return yaml_content
             try:
                 import yaml as _yaml
                 cfg = _yaml.safe_load(yaml_content)
-                cfg.setdefault('machine', {}).setdefault('network', {})['hostname'] = hostname
+                machine = cfg.setdefault('machine', {})
+                network = machine.setdefault('network', {})
+                if hostname:
+                    network['hostname'] = hostname
+                if net_config and net_config.get('enabled'):
+                    net_patch = _build_network_patch(node_ip, net_config)
+                    if net_patch:
+                        if 'nameservers' in net_patch:
+                            network['nameservers'] = net_patch['nameservers']
+                        existing_ifaces = network.get('interfaces', [])
+                        # Replace any existing interfaces list with patched one
+                        network['interfaces'] = net_patch['interfaces'] + [
+                            i for i in existing_ifaces
+                            if i.get('interface') not in
+                            [pi.get('interface') for pi in net_patch['interfaces']]
+                        ]
                 return _yaml.dump(cfg, default_flow_style=False, allow_unicode=True)
             except Exception:
                 return yaml_content  # fall back to original if YAML manipulation fails
 
-        def _apply(node_info, base_yaml, role):
+        def _apply(node_info, base_yaml, role, net_config=None):
             ip = node_info['ip']
             hostname = node_info.get('hostname', '')
-            yaml_content = _patch_hostname(base_yaml, hostname)
+            yaml_content = _patch_node_config(base_yaml, hostname, ip, net_config)
             tmp = tempfile.NamedTemporaryFile(
                 mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
             )
@@ -712,11 +780,11 @@ def cluster_bootstrap(request):
                     os.unlink(tmp.name)
 
         for node_info in cp_nodes:
-            _apply(node_info, cp_yaml, Node.ROLE_CONTROLPLANE)
+            _apply(node_info, cp_yaml, Node.ROLE_CONTROLPLANE, net_config=cp_net_config)
 
         if worker_yaml:
             for node_info in worker_nodes:
-                _apply(node_info, worker_yaml, Node.ROLE_WORKER)
+                _apply(node_info, worker_yaml, Node.ROLE_WORKER, net_config=worker_net_config)
 
         # Bootstrap etcd on the first control plane node
         bootstrap_error = None
