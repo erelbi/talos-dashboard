@@ -133,9 +133,11 @@ document.getElementById('format-btn').addEventListener('click', () => {
   }
 });
 
-document.getElementById('patch-form').addEventListener('submit', () => {
+document.getElementById('patch-form').addEventListener('submit', function() {
   rawTextarea.value = editor.getValue();
   rawTextarea.style.display = '';
+  var btn = this.querySelector('[type=submit]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Saving…'; }
 });
 </script>
 {% endblock %}

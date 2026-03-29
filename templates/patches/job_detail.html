@@ -91,9 +91,14 @@
 <!-- Patch content -->
 <div class="card">
   <div class="card-header">
-    <a class="text-decoration-none text-reset" data-bs-toggle="collapse" href="#patch-collapse">
-      <i class="bi bi-code-slash me-1"></i> Applied Patch Content
-      <i class="bi bi-chevron-down ms-1 small"></i>
+    <a class="text-decoration-none text-reset d-flex align-items-center gap-1"
+       role="button"
+       data-bs-toggle="collapse"
+       href="#patch-collapse"
+       aria-expanded="false"
+       aria-controls="patch-collapse">
+      <i class="bi bi-code-slash me-1" aria-hidden="true"></i> Applied Patch Content
+      <i class="bi bi-chevron-down ms-auto small" aria-hidden="true"></i>
     </a>
   </div>
   <div class="collapse" id="patch-collapse">
@@ -116,29 +121,42 @@ logOutput.scrollTop = logOutput.scrollHeight;
 if (jobStatus === 'pending' || jobStatus === 'running') {
   const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${wsProto}://${window.location.host}/ws/patches/jobs/{{ job.pk }}/progress/`);
+  let wsHadError = false;
 
   ws.onopen = () => { wsBadge.textContent = 'live'; wsBadge.className = 'badge bg-success'; };
-  ws.onclose = () => { wsBadge.textContent = 'disconnected'; wsBadge.className = 'badge bg-secondary'; };
-  ws.onerror = () => { wsBadge.textContent = 'error'; wsBadge.className = 'badge bg-danger'; };
+  ws.onclose = () => {
+    if (!wsHadError) {
+      wsBadge.textContent = 'disconnected';
+      wsBadge.className = 'badge bg-secondary';
+    }
+    wsHadError = false;
+  };
+  ws.onerror = () => {
+    wsHadError = true;
+    wsBadge.textContent = 'error';
+    wsBadge.className = 'badge bg-danger';
+  };
 
   ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
+    let data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+
     if (data.message) {
       const line = document.createElement('div');
-      if (data.status === 'success') line.style.color = '#3fb950';
-      else if (data.status === 'failed') line.style.color = '#f85149';
+      if (data.done && data.status === 'success') line.style.color = '#3fb950';
+      else if (data.done && data.status === 'failed') line.style.color = '#f85149';
       else if (data.node) line.style.color = '#79c0ff';
       line.textContent = data.message;
       logOutput.appendChild(line);
       logOutput.scrollTop = logOutput.scrollHeight;
     }
-    if (data.status && data.done === false) {
+    if (data.status && !data.done) {
       statusBadge.textContent = data.status;
       statusBadge.className = `badge badge-status-${data.status} fs-6`;
     }
     if (data.done) {
-      statusBadge.textContent = data.status;
-      statusBadge.className = `badge badge-status-${data.status} fs-6`;
+      statusBadge.textContent = data.status || jobStatus;
+      statusBadge.className = `badge badge-status-${data.status || jobStatus} fs-6`;
       wsBadge.textContent = 'done';
       wsBadge.className = 'badge bg-secondary';
       ws.close();

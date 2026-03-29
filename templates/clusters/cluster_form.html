@@ -53,7 +53,8 @@
 {% block extra_js %}
 <script>
 // Add Bootstrap classes to form fields
-document.querySelectorAll('input, select').forEach(el => el.classList.add('form-control'));
+document.querySelectorAll('input[type!=checkbox][type!=radio]').forEach(el => el.classList.add('form-control'));
+document.querySelectorAll('select').forEach(el => el.classList.add('form-select'));
 document.querySelectorAll('textarea').forEach(el => el.classList.add('form-control'));
 </script>
 {% endblock %}

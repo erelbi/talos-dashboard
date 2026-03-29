@@ -66,27 +66,28 @@
 </div>
 
 <!-- ── Stat Cards ─────────────────────────────────────────────────── -->
+{# Embed counts as data attributes for JS to read #}
+<div id="node-stats-data"
+     data-total="{{ nodes|length }}"
+     data-cp="{% for n in nodes %}{% if n.role == 'controlplane' %}1{% endif %}{% endfor %}"
+     data-running="{% for n in nodes %}{% if n.status == 'running' %}1{% endif %}{% endfor %}"
+     style="display:none"></div>
 <div class="row g-3 mb-4">
-  {% with cp_count=nodes|length %}
   <div class="col-6 col-md-3">
     <div class="card text-center py-2">
-      <div class="fs-3 fw-bold text-primary">{{ nodes.count }}</div>
+      <div class="fs-3 fw-bold text-primary">{{ nodes|length }}</div>
       <div class="text-muted small">Total Nodes</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card text-center py-2">
-      <div class="fs-3 fw-bold text-warning">
-        {% for n in nodes %}{% if n.role == 'controlplane' %}{% if forloop.last %}{{ forloop.counter }}{% endif %}{% endif %}{% empty %}0{% endfor %}
-      </div>
+      <div class="fs-3 fw-bold text-warning" id="cp-count-val">—</div>
       <div class="text-muted small">Control Planes</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card text-center py-2">
-      <div class="fs-3 fw-bold text-success">
-        {% for n in nodes %}{% if n.status == 'running' %}{% if forloop.last %}{{ forloop.counter }}{% endif %}{% endif %}{% empty %}0{% endfor %}
-      </div>
+      <div class="fs-3 fw-bold text-success" id="running-count-val">—</div>
       <div class="text-muted small">Running</div>
     </div>
   </div>
@@ -96,7 +97,6 @@
       <div class="text-muted small">Live Events</div>
     </div>
   </div>
-  {% endwith %}
 </div>
 
 <!-- ── Main Layout: Nodes + Events ───────────────────────────────── -->
@@ -222,6 +222,7 @@ const autoscroll   = document.getElementById('chk-autoscroll');
 
 let ws = null;
 let evCount = 0;
+let wsHadError = false;
 
 // ── Parse a raw talosctl events table line ──────────────────────
 function parseLine(raw) {
@@ -300,7 +301,8 @@ function setStatus(state) {
 
 // ── WebSocket ────────────────────────────────────────────────────
 function connectEvents() {
-  if (ws) ws.close();
+  if (ws) { ws.close(); ws = null; }
+  wsHadError = false;
 
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/clusters/{{ cluster.pk }}/events/`);
@@ -318,7 +320,8 @@ function connectEvents() {
   };
 
   ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
+    let msg;
+    try { msg = JSON.parse(e.data); } catch (_) { return; }
     const line = msg.line || '';
 
     if (msg.type === 'error') {
@@ -342,16 +345,20 @@ function connectEvents() {
   };
 
   ws.onclose = () => {
-    setStatus('disconnected');
-    appendInfo('── stream disconnected ──────────────────────────────────');
+    if (!wsHadError) {
+      setStatus('disconnected');
+      appendInfo('── stream disconnected ──────────────────────────────────');
+    }
+    wsHadError = false;
     btnConnect.classList.remove('d-none');
     btnStop.classList.add('d-none');
     ws = null;
   };
 
   ws.onerror = () => {
+    wsHadError = true;
     setStatus('error');
-    appendInfo('WebSocket error — Redis çalışıyor mu? (docker compose up -d)', 'ev-error');
+    appendInfo('WebSocket error — is Redis running? (docker compose up -d)', 'ev-error');
   };
 }
 
@@ -364,6 +371,19 @@ function clearEvents() {
   evCount = 0;
   liveCount.textContent = '0';
 }
+
+// Compute node stat counts from data attributes
+(function() {
+  const statsEl = document.getElementById('node-stats-data');
+  if (statsEl) {
+    const cpStr = statsEl.dataset.cp || '';
+    const runStr = statsEl.dataset.running || '';
+    const cpCount = (cpStr.match(/1/g) || []).length;
+    const runCount = (runStr.match(/1/g) || []).length;
+    document.getElementById('cp-count-val').textContent = cpCount;
+    document.getElementById('running-count-val').textContent = runCount;
+  }
+})();
 
 // Auto-connect on page load
 connectEvents();

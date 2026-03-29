@@ -140,9 +140,11 @@
     }
   });
 
-  // Sync editor content back to textarea before form submit
-  document.getElementById('mc-form').addEventListener('submit', function() {
+  // Sync editor content back to textarea before form submit; disable button to prevent double-submit
+  document.getElementById('mc-form').addEventListener('submit', function(e) {
     editor.save();
+    var btn = document.getElementById('btn-apply');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Applying…'; }
   });
 
   // Toolbar buttons

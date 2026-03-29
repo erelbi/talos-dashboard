@@ -44,12 +44,12 @@
     <span class="step-label">Cluster Info</span>
   </div>
   <div class="step-connector {% if wizard_step > 1 %}done{% endif %}"></div>
-  <div class="wizard-step {% if wizard_step == 2 %}active{% endif %}">
-    <span class="step-number">2</span>
+  <div class="wizard-step {% if wizard_step == 2 %}active{% elif wizard_step > 2 %}done{% endif %}">
+    <span class="step-number">{% if wizard_step > 2 %}<i class="bi bi-check"></i>{% else %}2{% endif %}</span>
     <span class="step-label">Edit Configs</span>
   </div>
-  <div class="step-connector"></div>
-  <div class="wizard-step">
+  <div class="step-connector {% if wizard_step > 2 %}done{% endif %}"></div>
+  <div class="wizard-step {% if wizard_step == 3 %}active{% endif %}">
     <span class="step-number">3</span>
     <span class="step-label">Apply</span>
   </div>
@@ -229,6 +229,9 @@ function submitStep1() {
 
   document.getElementById('cp-ips-hidden').value = cpIps.join(', ');
   document.getElementById('worker-ips-hidden').value = collectIps('worker-container').join(', ');
+
+  const btn = document.querySelector('[onclick="submitStep1()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
   document.getElementById('step1-form').submit();
 }
 
@@ -267,6 +270,8 @@ function submitStep2() {
   workerRaw.value = workerEditor.getValue();
   cpRaw.style.display = '';
   workerRaw.style.display = '';
+  const btn = document.querySelector('[onclick="submitStep2()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Applying…'; }
   document.getElementById('step2-form').submit();
 }
 </script>

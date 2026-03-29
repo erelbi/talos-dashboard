@@ -54,6 +54,9 @@
               </option>
               {% endfor %}
             </select>
+            {% for error in form.cluster.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
           </div>
 
           <div class="mb-3">
@@ -63,6 +66,9 @@
               <option value="{{ val }}" {% if val == patch.target_role %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
+            {% for error in form.target_role.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
           </div>
 
           <div class="mb-3">
@@ -131,7 +137,7 @@ function loadNodes() {
           <input class="form-check-input" type="checkbox" name="target_nodes" value="${node.id}">
           <span class="font-monospace small">${node.ip_address}</span>
           ${node.hostname ? `<span class="text-muted small">(${node.hostname})</span>` : ''}
-          <span class="badge ${node.role === 'controlplane' ? 'bg-info' : 'bg-secondary'} ms-1">${node.role}</span>
+          <span class="badge ${node.role === 'controlplane' ? 'bg-warning text-dark' : 'bg-secondary'} ms-1">${node.role}</span>
         `;
         nodesList.appendChild(label);
       });
@@ -147,5 +153,11 @@ roleSelect.addEventListener('change', loadNodes);
 
 // Trigger on load if cluster already selected
 if (clusterSelect.value) loadNodes();
+
+// Prevent double-submit
+document.getElementById('apply-form').addEventListener('submit', function() {
+  var btn = document.getElementById('submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Applying…'; }
+});
 </script>
 {% endblock %}

@@ -16,7 +16,12 @@
     </div>
     <div class="stat-bar-bg mb-3">
       <div class="stat-bar {% if mem_pct > 85 %}bg-danger{% elif mem_pct > 65 %}bg-warning{% else %}bg-success{% endif %}"
-           style="width:{{ mem_pct }}%"></div>
+           style="width:{{ mem_pct }}%"
+           role="progressbar"
+           aria-valuenow="{{ mem_pct }}"
+           aria-valuemin="0"
+           aria-valuemax="100"
+           aria-label="Memory usage {{ mem_pct }}%"></div>
     </div>
 
     <div class="row g-2 text-center">

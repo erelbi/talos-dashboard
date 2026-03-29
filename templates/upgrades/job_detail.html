@@ -94,15 +94,30 @@ logOutput.scrollTop = logOutput.scrollHeight;
 if (jobStatus === 'pending' || jobStatus === 'running') {
   const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${wsProto}://${window.location.host}/ws/upgrades/jobs/{{ job.pk }}/progress/`);
+  let wsHadError = false;
 
   ws.onopen = () => { wsBadge.textContent = 'live'; wsBadge.className = 'badge bg-success'; };
-  ws.onclose = () => { wsBadge.textContent = 'disconnected'; wsBadge.className = 'badge bg-secondary'; };
-  ws.onerror = () => { wsBadge.textContent = 'error'; wsBadge.className = 'badge bg-danger'; };
+  ws.onclose = () => {
+    if (!wsHadError) {
+      wsBadge.textContent = 'disconnected';
+      wsBadge.className = 'badge bg-secondary';
+    }
+    wsHadError = false;
+  };
+  ws.onerror = () => {
+    wsHadError = true;
+    wsBadge.textContent = 'error';
+    wsBadge.className = 'badge bg-danger';
+  };
 
   ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    logOutput.textContent += (data.message || '') + '\n';
-    logOutput.scrollTop = logOutput.scrollHeight;
+    let data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+
+    if (data.message) {
+      logOutput.textContent += data.message + '\n';
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
 
     if (data.status) {
       statusBadge.textContent = data.status;
@@ -112,7 +127,7 @@ if (jobStatus === 'pending' || jobStatus === 'running') {
     if (data.done) {
       ws.close();
       // Reload to get final state from server
-      setTimeout(() => location.reload(), 1000);
+      setTimeout(() => location.reload(), 1500);
     }
   };
 } else {

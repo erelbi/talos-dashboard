@@ -13,6 +13,12 @@
   </a>
 </div>
 
+{% if error %}
+<div class="alert alert-danger">
+  <strong>Failed to run test:</strong> {{ error }}
+</div>
+{% endif %}
+
 {% for r in results %}
 <div class="card mb-3">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -49,11 +55,11 @@
   <div class="card-header">Troubleshooting</div>
   <div class="card-body text-muted small">
     <ul class="mb-0">
-      <li><strong>connection refused</strong> → Talos API portu (50000) açık mı? Firewall kontrolü yap.</li>
-      <li><strong>certificate signed by unknown authority</strong> → Talosconfig'deki CA sertifikası yanlış/eksik.</li>
-      <li><strong>context deadline exceeded</strong> → IP ulaşılamıyor, network bağlantısını kontrol et.</li>
-      <li><strong>no such host</strong> → Endpoint hostname değil IP olmalı.</li>
-      <li><strong>exit 0, boş çıktı</strong> → <code>get members</code> için node düzgün bağlı olmayabilir.</li>
+      <li><strong>connection refused</strong> → Check that the Talos API port (50000) is open and the firewall allows access.</li>
+      <li><strong>certificate signed by unknown authority</strong> → The CA certificate in your talosconfig is incorrect or missing.</li>
+      <li><strong>context deadline exceeded</strong> → The IP is unreachable; check network connectivity.</li>
+      <li><strong>no such host</strong> → The endpoint should be an IP address, not a hostname.</li>
+      <li><strong>exit 0, no output</strong> → For <code>get members</code>, the node may not be fully joined yet.</li>
     </ul>
   </div>
 </div>

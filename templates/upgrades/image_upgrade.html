@@ -3,12 +3,18 @@
 {% block header %}Image Upgrade{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h5 class="mb-0">Image Upgrade</h5>
+  <a href="{% url 'upgrades:job_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-list-task me-1"></i> All Jobs
+  </a>
+</div>
 <div class="row">
   <div class="col-lg-7">
     <div class="card mb-4">
       <div class="card-header"><i class="bi bi-arrow-up-circle me-1"></i> New Image Upgrade Job</div>
       <div class="card-body">
-        <form method="post" id="upgrade-form">
+        <form method="post" id="upgrade-form" onsubmit="this.querySelector('[type=submit]').disabled=true">
           {% csrf_token %}
           <div class="mb-3">
             <label class="form-label fw-semibold">Cluster <span class="text-danger">*</span></label>
@@ -21,6 +27,9 @@
               </option>
               {% endfor %}
             </select>
+            {% for error in form.cluster.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
           </div>
 
           <div class="mb-3">
@@ -94,7 +103,7 @@ document.getElementById('cluster-select').addEventListener('change', function() 
                  value="${n.id}" id="node_${n.id}">
           <label class="form-check-label" for="node_${n.id}">
             ${n.hostname || n.ip_address}
-            <span class="text-muted small">(${n.role})</span>
+            <span class="badge ${n.role === 'controlplane' ? 'bg-warning text-dark' : 'bg-secondary'} ms-1 small">${n.role}</span>
           </label>
         </div>
       `).join('');
