@@ -1,4 +1,5 @@
 import ipaddress
+import re
 
 import yaml
 from django import forms
@@ -59,6 +60,14 @@ class RestartServiceForm(forms.Form):
         help_text='e.g. kubelet, cri, etcd',
         widget=forms.TextInput(attrs={'placeholder': 'kubelet'}),
     )
+
+    def clean_service_name(self):
+        name = self.cleaned_data.get('service_name', '').strip()
+        if not re.match(r'^[a-zA-Z0-9_\-]+$', name):
+            raise forms.ValidationError(
+                'Service name may only contain letters, digits, hyphens, and underscores.'
+            )
+        return name
 
 
 class MachineConfigForm(forms.Form):

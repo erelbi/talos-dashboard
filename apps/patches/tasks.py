@@ -22,7 +22,11 @@ def run_patch_job(self, job_id: int):
     from apps.clusters.models import Node
     from apps.clusters.talosctl import TalosctlRunner
 
-    job = PatchJob.objects.select_related('cluster').prefetch_related('target_nodes').get(pk=job_id)
+    try:
+        job = PatchJob.objects.select_related('cluster').prefetch_related('target_nodes').get(pk=job_id)
+    except PatchJob.DoesNotExist:
+        logger.error('run_patch_job: job %s not found', job_id)
+        return {'job_id': job_id, 'status': 'not_found'}
     job.status = PatchJob.STATUS_RUNNING
     job.started_at = timezone.now()
     job.celery_task_id = self.request.id

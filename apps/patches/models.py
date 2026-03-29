@@ -1,4 +1,7 @@
 from django.db import models
+from django.db.models import F
+from django.db.models.functions import Concat
+from django.db.models import Value
 from django.contrib.auth.models import User
 from apps.clusters.models import Cluster, Node
 
@@ -51,7 +54,7 @@ class PatchJob(models.Model):
     patch_content = models.TextField(help_text='Snapshot of patch content at time of application')
     target_role = models.CharField(max_length=20)
     target_nodes = models.ManyToManyField(Node, blank=True, related_name='patch_jobs')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     celery_task_id = models.CharField(max_length=200, blank=True)
     initiated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     logs = models.TextField(blank=True)
@@ -67,5 +70,7 @@ class PatchJob(models.Model):
         return f'{tmpl} on {self.cluster.name} ({self.status})'
 
     def append_log(self, line: str):
+        PatchJob.objects.filter(pk=self.pk).update(
+            logs=Concat(F('logs'), Value(line + '\n'))
+        )
         self.logs = self.logs + line + '\n'
-        self.save(update_fields=['logs'])

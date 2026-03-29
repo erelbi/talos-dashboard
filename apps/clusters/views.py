@@ -47,6 +47,13 @@ def overview(request):
     })
 
 
+@login_required
+def node_rows_partial(request):
+    """HTMX partial: returns only the node table rows for the dashboard auto-refresh."""
+    clusters = Cluster.objects.filter(is_active=True).prefetch_related('nodes')
+    return render(request, 'dashboard/_node_rows.html', {'clusters': clusters})
+
+
 # ─── Clusters ────────────────────────────────────────────────────────────────
 
 @login_required
@@ -185,7 +192,7 @@ def cluster_refresh(request, pk):
                 node.role = m['role']
                 node.status = 'running'
                 node.last_seen = timezone.now()
-                node.save()
+                node.save(update_fields=['hostname', 'talos_version', 'k8s_version', 'role', 'status', 'last_seen'])
         messages.success(request, f'Cluster refreshed. {len(members)} node(s) found.')
     except Exception as e:
         messages.error(request, f'Refresh failed: {e}')
@@ -197,23 +204,28 @@ def cluster_test_connection(request, pk):
     """Run talosctl version + get members and show raw output for debugging."""
     cluster = get_object_or_404(Cluster, pk=pk)
     results = []
+    error = None
     node_ip = cluster.endpoint.split(':')[0]
-    with TalosctlRunner(cluster) as t:
-        for label, args in [
-            ('version', ['version']),
-            ('get members', ['get', 'members', '-o', 'json']),
-        ]:
-            r = t.run(args, timeout=10)
-            results.append({
-                'label': label,
-                'cmd': f'talosctl --talosconfig <tmp> --endpoints {cluster.endpoint} -n {node_ip} {" ".join(args)}',
-                'returncode': r['returncode'],
-                'stdout': r['stdout'],
-                'stderr': r['stderr'],
-            })
+    try:
+        with TalosctlRunner(cluster) as t:
+            for label, args in [
+                ('version', ['version']),
+                ('get members', ['get', 'members', '-o', 'json']),
+            ]:
+                r = t.run(args, timeout=10)
+                results.append({
+                    'label': label,
+                    'cmd': f'talosctl --talosconfig <tmp> --endpoints {cluster.endpoint} -n {node_ip} {" ".join(args)}',
+                    'returncode': r['returncode'],
+                    'stdout': r['stdout'],
+                    'stderr': r['stderr'],
+                })
+    except Exception as e:
+        error = str(e)
     return render(request, 'clusters/cluster_test.html', {
         'cluster': cluster,
         'results': results,
+        'error': error,
     })
 
 
@@ -241,7 +253,6 @@ def node_detail(request, cluster_pk, node_ip):
 
 
 @login_required
-@login_required
 def cluster_node_config(request, cluster_pk):
     """AJAX: fetch existing machine config from a node of given role."""
     cluster = get_object_or_404(Cluster, pk=cluster_pk)
@@ -263,6 +274,7 @@ def cluster_node_config(request, cluster_pk):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@login_required
 def node_add(request, cluster_pk):
     cluster = get_object_or_404(Cluster, pk=cluster_pk)
     if not request.user.profile.is_operator:
@@ -287,13 +299,14 @@ def node_add(request, cluster_pk):
                 config_content = config_form.cleaned_data['config_content']
                 insecure = config_form.cleaned_data.get('insecure', True)
                 import tempfile, os as _os
-                tmp = tempfile.NamedTemporaryFile(
-                    mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
-                )
-                tmp.write(config_content)
-                tmp.close()
-                _os.chmod(tmp.name, 0o600)
+                tmp = None
                 try:
+                    tmp = tempfile.NamedTemporaryFile(
+                        mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
+                    )
+                    tmp.write(config_content)
+                    tmp.close()
+                    _os.chmod(tmp.name, 0o600)
                     with TalosctlRunner(cluster) as t:
                         result = t.apply_config(node.ip_address, tmp.name, insecure=insecure)
                     if result['success']:
@@ -306,7 +319,7 @@ def node_add(request, cluster_pk):
                 except Exception as e:
                     messages.warning(request, f'Node saved but config apply error: {e}')
                 finally:
-                    if _os.path.exists(tmp.name):
+                    if tmp is not None and _os.path.exists(tmp.name):
                         _os.unlink(tmp.name)
             else:
                 messages.success(request, f'Node {node.ip_address} added to cluster.')
@@ -732,10 +745,11 @@ def node_apply_config(request, cluster_pk, node_ip):
             insecure = form.cleaned_data['insecure']
 
             # Write config to temp file
-            tmp = tempfile.NamedTemporaryFile(
-                mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
-            )
+            tmp = None
             try:
+                tmp = tempfile.NamedTemporaryFile(
+                    mode='w', suffix='.yaml', delete=False, dir='/tmp', encoding='utf-8'
+                )
                 tmp.write(config_content)
                 tmp.close()
                 os.chmod(tmp.name, 0o600)
@@ -745,7 +759,7 @@ def node_apply_config(request, cluster_pk, node_ip):
 
                 if result['success']:
                     node.status = 'provisioning'
-                    node.save()
+                    node.save(update_fields=['status'])
                     messages.success(request, f'Configuration applied to {node_ip}.')
                     return redirect('clusters:node_detail', cluster_pk=cluster_pk, node_ip=node_ip)
                 else:
@@ -754,7 +768,7 @@ def node_apply_config(request, cluster_pk, node_ip):
             except Exception as e:
                 messages.error(request, f'Error applying config: {e}')
             finally:
-                if os.path.exists(tmp.name):
+                if tmp is not None and os.path.exists(tmp.name):
                     os.unlink(tmp.name)
     else:
         form = NodeApplyConfigForm()

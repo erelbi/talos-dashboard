@@ -22,7 +22,11 @@ def run_image_upgrade(self, job_id: int):
     from .models import UpgradeJob
     from apps.clusters.talosctl import TalosctlRunner
 
-    job = UpgradeJob.objects.select_related('cluster').prefetch_related('target_nodes').get(pk=job_id)
+    try:
+        job = UpgradeJob.objects.select_related('cluster').prefetch_related('target_nodes').get(pk=job_id)
+    except UpgradeJob.DoesNotExist:
+        logger.error('run_image_upgrade: job %s not found', job_id)
+        return {'job_id': job_id, 'status': 'not_found'}
     job.status = UpgradeJob.STATUS_RUNNING
     job.started_at = timezone.now()
     job.celery_task_id = self.request.id
@@ -106,7 +110,11 @@ def run_k8s_upgrade(self, job_id: int):
     from .models import UpgradeJob
     from apps.clusters.talosctl import TalosctlRunner
 
-    job = UpgradeJob.objects.select_related('cluster').get(pk=job_id)
+    try:
+        job = UpgradeJob.objects.select_related('cluster').get(pk=job_id)
+    except UpgradeJob.DoesNotExist:
+        logger.error('run_k8s_upgrade: job %s not found', job_id)
+        return {'job_id': job_id, 'status': 'not_found'}
     job.status = UpgradeJob.STATUS_RUNNING
     job.started_at = timezone.now()
     job.celery_task_id = self.request.id

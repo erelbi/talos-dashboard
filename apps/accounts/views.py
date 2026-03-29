@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.utils.http import url_has_allowed_host_and_scheme
 from .models import UserProfile
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,10 @@ def login_view(request):
 
         if user:
             login(request, user)
-            return redirect(request.GET.get('next', '/'))
+            next_url = request.GET.get('next', '/')
+            if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                next_url = '/'
+            return redirect(next_url)
         elif not messages.get_messages(request):
             messages.error(request, 'Invalid username or password.')
 

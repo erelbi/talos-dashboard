@@ -1,4 +1,7 @@
 from django.db import models
+from django.db.models import F
+from django.db.models.functions import Concat
+from django.db.models import Value
 from django.contrib.auth.models import User
 from apps.clusters.models import Cluster, Node
 
@@ -31,7 +34,7 @@ class UpgradeJob(models.Model):
     image_url = models.CharField(max_length=500, blank=True, help_text='For image upgrade: full image URL')
     target_version = models.CharField(max_length=50, blank=True, help_text='For k8s upgrade: target version e.g. 1.32.0')
     target_nodes = models.ManyToManyField(Node, blank=True, related_name='upgrade_jobs')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     celery_task_id = models.CharField(max_length=200, blank=True)
     initiated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -46,5 +49,7 @@ class UpgradeJob(models.Model):
         return f'{self.get_job_type_display()} on {self.cluster.name} ({self.status})'
 
     def append_log(self, line: str):
+        UpgradeJob.objects.filter(pk=self.pk).update(
+            logs=Concat(F('logs'), Value(line + '\n'))
+        )
         self.logs = self.logs + line + '\n'
-        self.save(update_fields=['logs'])

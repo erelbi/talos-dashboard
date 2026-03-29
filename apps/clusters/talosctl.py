@@ -342,8 +342,10 @@ class TalosctlRunner:
                 if extracted:
                     result['stdout'] = extracted
                     break
-        except Exception:
-            pass  # Fall back to raw output
+        except Exception as e:
+            import logging as _logging
+            _logging.getLogger(__name__).warning('get_machineconfig YAML parse failed: %s', e)
+            # Fall back to raw output
         return result
 
     def apply_machineconfig(self, node_ip: str, config_yaml: str, mode: str = 'auto') -> dict:
